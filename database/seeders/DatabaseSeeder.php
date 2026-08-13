@@ -67,9 +67,7 @@ class DatabaseSeeder extends Seeder
     {
         $values = [
             'Business' => [
-                // CHANGE ME: your registered trading name. Drives the logo text,
-                // the footer, page titles and the schema.org business record.
-                'site_name' => 'Rio Car Hire',
+                'site_name' => env('APP_NAME', 'Folafemz Global NIG LTD'),
                 'tagline' => 'Chauffeur-driven cars, buses and logistics across Nigeria',
                 'founded_year' => '2020',
             ],
