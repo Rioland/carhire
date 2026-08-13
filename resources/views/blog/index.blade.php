@@ -44,7 +44,7 @@
             <input type="search" name="q" value="{{ $term }}" placeholder="Search articles" style="max-width:240px">
         </form>
 
-        <div class="grid grid--3">
+        <div class="grid grid--3 stagger">
             @forelse($posts as $post)
                 <article class="card">
                     @if($post->cover_image)

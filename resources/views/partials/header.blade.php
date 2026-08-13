@@ -55,6 +55,8 @@
             </button>
         </div>
 
+        <div class="progress" data-progress aria-hidden="true"></div>
+
         <div class="mobileNav" data-mobile-nav data-open="false">
             <a href="{{ route('home') }}">Home</a>
             @foreach($navServices as $service)

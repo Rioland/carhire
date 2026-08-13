@@ -235,8 +235,8 @@ p { margin: 0 0 1em; }
 
 .hero { position: relative; background: var(--asphalt); color: var(--white); overflow: hidden; }
 .hero__media { position: absolute; inset: 0; }
-.hero__media video, .hero__media img { width: 100%; height: 100%; object-fit: cover; opacity: .38; }
-.hero__media::after { content: ""; position: absolute; inset: 0; background: linear-gradient(105deg, rgba(20, 24, 27, .95) 12%, rgba(20, 24, 27, .55) 65%, rgba(20, 24, 27, .8)); }
+.hero__media video, .hero__media img { width: 100%; height: 100%; object-fit: cover; opacity: .55; }
+.hero__media::after { content: ""; position: absolute; inset: 0; background: linear-gradient(105deg, rgba(20, 24, 27, .93) 10%, rgba(20, 24, 27, .42) 62%, rgba(20, 24, 27, .72)); }
 
 .hero__inner {
   position: relative;
@@ -552,7 +552,355 @@ textarea { min-height: 110px; resize: vertical; }
   .floatChat span { display: none; }
 }
 
+/* ==========================================================================
+   Motion system
+   --------------------------------------------------------------------------
+   One easing curve and three durations, applied consistently. Everything here
+   is decoration: the site is fully usable with all of it switched off, and the
+   reduced-motion block at the bottom of this file does exactly that.
+   ========================================================================== */
+
+:root {
+  --ease: cubic-bezier(.22, .61, .36, 1);
+  --ease-out: cubic-bezier(.16, 1, .3, 1);
+  --t-fast: .18s;
+  --t-mid: .42s;
+  --t-slow: .8s;
+}
+
+/* --------------------------------------------------------------------------
+   Scroll reveal — directional variants with stagger
+   -------------------------------------------------------------------------- */
+
+.reveal {
+  opacity: 0;
+  transform: translate3d(0, 18px, 0);
+  transition: opacity var(--t-mid) var(--ease-out), transform var(--t-mid) var(--ease-out);
+  transition-delay: var(--reveal-delay, 0ms);
+  will-change: opacity, transform;
+}
+
+.reveal--left  { transform: translate3d(-24px, 0, 0); }
+.reveal--right { transform: translate3d(24px, 0, 0); }
+.reveal--scale { transform: scale(.96); }
+.reveal--fade  { transform: none; }
+
+.reveal.is-visible { opacity: 1; transform: none; will-change: auto; }
+
+/* Children cascade in sequence rather than the whole block landing at once. */
+.stagger > * {
+  opacity: 0;
+  transform: translate3d(0, 16px, 0);
+  transition: opacity var(--t-mid) var(--ease-out), transform var(--t-mid) var(--ease-out);
+}
+
+.stagger.is-visible > * { opacity: 1; transform: none; }
+.stagger.is-visible > *:nth-child(1) { transition-delay: 0ms; }
+.stagger.is-visible > *:nth-child(2) { transition-delay: 60ms; }
+.stagger.is-visible > *:nth-child(3) { transition-delay: 120ms; }
+.stagger.is-visible > *:nth-child(4) { transition-delay: 180ms; }
+.stagger.is-visible > *:nth-child(5) { transition-delay: 240ms; }
+.stagger.is-visible > *:nth-child(6) { transition-delay: 300ms; }
+.stagger.is-visible > *:nth-child(7) { transition-delay: 360ms; }
+.stagger.is-visible > *:nth-child(8) { transition-delay: 420ms; }
+.stagger.is-visible > *:nth-child(n+9) { transition-delay: 480ms; }
+
+/* --------------------------------------------------------------------------
+   Hero entrance + slow drift on the backdrop
+   -------------------------------------------------------------------------- */
+
+@keyframes riseIn {
+  from { opacity: 0; transform: translate3d(0, 22px, 0); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes kenBurns {
+  from { transform: scale(1) translate3d(0, 0, 0); }
+  to   { transform: scale(1.12) translate3d(0, -1.5%, 0); }
+}
+
+@keyframes sheen {
+  from { transform: translateX(-120%) skewX(-18deg); }
+  to   { transform: translateX(320%) skewX(-18deg); }
+}
+
+.hero__media img,
+.hero__media video {
+  animation: kenBurns 22s var(--ease) forwards alternate infinite;
+}
+
+.hero .eyebrow,
+.hero h1,
+.hero__sub,
+.hero__actions,
+.hero__plates,
+.hero .dispatch {
+  animation: riseIn .7s var(--ease-out) both;
+}
+
+.hero .eyebrow    { animation-delay: .05s; }
+.hero h1          { animation-delay: .13s; }
+.hero__sub        { animation-delay: .21s; }
+.hero__actions    { animation-delay: .29s; }
+.hero__plates     { animation-delay: .37s; }
+.hero .dispatch   { animation-delay: .3s; }
+
+/* --------------------------------------------------------------------------
+   Header — condenses once the page scrolls
+   -------------------------------------------------------------------------- */
+
+.header {
+  transition: height var(--t-mid) var(--ease), background-color var(--t-mid) var(--ease),
+              box-shadow var(--t-mid) var(--ease);
+}
+
+.header__bar { transition: height var(--t-mid) var(--ease); }
+
+.header.is-scrolled {
+  background: rgba(20, 24, 27, .98);
+  box-shadow: 0 10px 30px -18px rgba(0, 0, 0, .9);
+}
+
+.header.is-scrolled .header__bar { height: 58px; }
+.header.is-scrolled .brand img { height: 28px; }
+
+/* Reading-progress hairline pinned under the header */
+.progress {
+  position: absolute;
+  left: 0;
+  bottom: -1px;
+  height: 2px;
+  width: 100%;
+  transform: scaleX(var(--progress, 0));
+  transform-origin: 0 50%;
+  background: linear-gradient(90deg, var(--green), var(--amber));
+  pointer-events: none;
+}
+
+/* Dropdowns fade rather than snap */
+.nav__menu {
+  display: block;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-6px);
+  transition: opacity var(--t-fast) var(--ease), transform var(--t-fast) var(--ease), visibility var(--t-fast);
+}
+
+.nav__group[data-open="true"] .nav__menu {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+}
+
+.nav a::after {
+  content: "";
+  display: block;
+  height: 1.5px;
+  width: 0;
+  background: var(--amber);
+  transition: width var(--t-fast) var(--ease);
+}
+
+.nav a:hover::after,
+.nav a[aria-current="page"]::after { width: 100%; }
+
+/* --------------------------------------------------------------------------
+   Buttons — light sweep on hover
+   -------------------------------------------------------------------------- */
+
+.btn { position: relative; overflow: hidden; isolation: isolate; }
+
+.btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .28), transparent);
+  transform: translateX(-120%) skewX(-18deg);
+}
+
+.btn:hover::after { animation: sheen .7s var(--ease) forwards; }
+.btn:hover { transform: translateY(-2px); }
+.btn--amber:hover { box-shadow: 0 10px 24px -12px rgba(242, 168, 29, .9); }
+
+/* --------------------------------------------------------------------------
+   Cards — image pushes in, content lifts
+   -------------------------------------------------------------------------- */
+
+.card { transition: transform var(--t-mid) var(--ease), box-shadow var(--t-mid) var(--ease), border-color var(--t-mid) var(--ease); }
+.card__media { overflow: hidden; }
+.card__media img { transition: transform var(--t-slow) var(--ease); }
+
+.card:hover { transform: translateY(-6px); }
+.card:hover .card__media img { transform: scale(1.07); }
+
+.cityCard, .postCard { transition: transform var(--t-mid) var(--ease), box-shadow var(--t-mid) var(--ease), border-color var(--t-mid) var(--ease); }
+.cityCard:hover, .postCard:hover { transform: translateY(-5px); box-shadow: var(--shadow); }
+
+.postCard__media { overflow: hidden; }
+.postCard__media img { transition: transform var(--t-slow) var(--ease); }
+.postCard:hover .postCard__media img { transform: scale(1.06); }
+
+/* Fleet filter — cards fade out instead of vanishing */
+.card[hidden] { display: none; }
+
+.card.is-filtering {
+  opacity: 0;
+  transform: scale(.97);
+  transition: opacity var(--t-fast) var(--ease), transform var(--t-fast) var(--ease);
+}
+
+.filter { transition: background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), transform var(--t-fast) var(--ease); }
+.filter:hover { transform: translateY(-1px); }
+
+/* --------------------------------------------------------------------------
+   Stats — counters animate up on entry
+   -------------------------------------------------------------------------- */
+
+.stat__value { font-variant-numeric: tabular-nums; }
+
+/* --------------------------------------------------------------------------
+   FAQ — height animates via grid rather than a max-height guess
+   -------------------------------------------------------------------------- */
+
+/* Padding lives on the inner element so a collapsed answer has zero height. */
+.faq__a {
+  display: grid;
+  grid-template-rows: 0fr;
+  padding: 0;
+  transition: grid-template-rows var(--t-mid) var(--ease);
+}
+
+.faq__aInner {
+  overflow: hidden;
+  min-height: 0;
+  padding-right: 3rem;
+  color: var(--slate);
+  max-width: 76ch;
+}
+
+.faq__item[data-open="true"] .faq__a { grid-template-rows: 1fr; }
+.faq__item[data-open="true"] .faq__aInner { padding-bottom: 1.5rem; }
+
+.faq__q::after { transition: transform var(--t-mid) var(--ease); }
+.faq__item[data-open="true"] .faq__q::after { transform: translateY(-50%) rotate(135deg); }
+
+/* --------------------------------------------------------------------------
+   Reviews carousel — snap + progress dots
+   -------------------------------------------------------------------------- */
+
+.reviews {
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+}
+
+.reviews::-webkit-scrollbar { display: none; }
+.review { scroll-snap-align: start; }
+
+.carouselDots { display: flex; gap: .4rem; justify-content: center; margin-top: 1.75rem; }
+
+.carouselDots button {
+  width: 7px;
+  height: 7px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .3);
+  cursor: pointer;
+  transition: background-color var(--t-fast) var(--ease), width var(--t-fast) var(--ease);
+}
+
+.carouselDots button[aria-current="true"] { background: var(--amber); width: 20px; border-radius: 4px; }
+
+/* --------------------------------------------------------------------------
+   Back to top
+   -------------------------------------------------------------------------- */
+
+.toTop {
+  position: fixed;
+  right: 1.25rem;
+  bottom: 5.5rem;
+  z-index: 55;
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line-dark);
+  border-radius: 50%;
+  background: rgba(20, 24, 27, .9);
+  color: var(--white);
+  cursor: pointer;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(10px);
+  transition: opacity var(--t-mid) var(--ease), transform var(--t-mid) var(--ease), visibility var(--t-mid);
+}
+
+.toTop.is-visible { opacity: 1; visibility: visible; transform: none; }
+.toTop:hover { background: var(--green); border-color: var(--green); }
+
+.floatChat { transition: transform var(--t-mid) var(--ease), box-shadow var(--t-mid) var(--ease); }
+.floatChat:hover { transform: translateY(-3px) scale(1.02); }
+
+/* --------------------------------------------------------------------------
+   Forms — clearer focus, gentler validation feedback
+   -------------------------------------------------------------------------- */
+
+.input, .select, .textarea {
+  transition: border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease), background-color var(--t-fast) var(--ease);
+}
+
+.input:focus, .select:focus, .textarea:focus {
+  box-shadow: 0 0 0 3px rgba(11, 107, 79, .16);
+}
+
+/* --------------------------------------------------------------------------
+   Modal
+   -------------------------------------------------------------------------- */
+
+/* `display` cannot transition, so the modal stays flex and toggles visibility. */
+.modal {
+  display: flex;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity var(--t-mid) var(--ease), visibility var(--t-mid);
+}
+
+.modal[data-open="true"] { opacity: 1; visibility: visible; }
+.modal[data-open="false"] { opacity: 0; visibility: hidden; }
+
+.modal__scrim { transition: opacity var(--t-mid) var(--ease); }
+.modal__panel { transition: transform var(--t-mid) var(--ease-out), opacity var(--t-mid) var(--ease-out); }
+.modal[data-open="false"] .modal__panel { transform: translateY(16px) scale(.98); opacity: 0; }
+.modal[data-open="true"] .modal__panel { transform: none; opacity: 1; }
+
+/* ==========================================================================
+   Reduced motion — the whole system above collapses to plain, instant states
+   ========================================================================== */
+
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: .001ms !important; transition-duration: .001ms !important; scroll-behavior: auto !important; }
-  .reveal { opacity: 1; transform: none; }
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .reveal,
+  .stagger > * { opacity: 1 !important; transform: none !important; }
+
+  .hero__media img,
+  .hero__media video { animation: none !important; }
+
+  .card:hover,
+  .cityCard:hover,
+  .postCard:hover,
+  .btn:hover,
+  .floatChat:hover { transform: none !important; }
+
+  .card:hover .card__media img,
+  .postCard:hover .postCard__media img { transform: none !important; }
+
+  .reviews { scroll-behavior: auto !important; }
 }

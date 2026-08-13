@@ -48,7 +48,7 @@
 
                 @if($vehicles->isNotEmpty())
                     <h2 style="margin-top:2.5rem">Available in {{ $city->name }}</h2>
-                    <div class="grid grid--3">
+                    <div class="grid grid--3 stagger">
                         @foreach($vehicles as $vehicle)
                             <article class="card">
                                 @if($vehicle->image)

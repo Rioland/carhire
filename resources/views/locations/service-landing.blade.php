@@ -32,7 +32,7 @@
 
                 @if($vehicles->isNotEmpty())
                     <h2 style="margin-top:2.5rem">Vehicles for this service</h2>
-                    <div class="grid grid--3">
+                    <div class="grid grid--3 stagger">
                         @foreach($vehicles as $vehicle)
                             <article class="card">
                                 @if($vehicle->image)
@@ -72,7 +72,7 @@
                         @foreach($faqs as $faq)
                             <div class="faq__item" data-open="false">
                                 <button class="faq__q" aria-expanded="false">{{ $faq->question }}</button>
-                                <div class="faq__a">{{ $faq->answer }}</div>
+                                <div class="faq__a"><div class="faq__aInner">{{ $faq->answer }}</div></div>
                             </div>
                         @endforeach
                     </div>

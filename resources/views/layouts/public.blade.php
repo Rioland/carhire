@@ -55,6 +55,8 @@
     </a>
 @endif
 
+<button class="toTop" data-to-top type="button" aria-label="Back to top">↑</button>
+
 <script src="{{ asset('assets/js/site.js') }}" defer></script>
 @stack('scripts')
 </body>

@@ -4,22 +4,31 @@
 @section('description', $settings['meta_description'] ?? '')
 
 @push('head')
+@php
+    $businessSchema = [
+        '@context' => 'https://schema.org',
+        '@type' => 'AutoRental',
+        'name' => $settings['site_name'] ?? '',
+        'description' => $settings['meta_description'] ?? '',
+        'telephone' => $settings['phone'] ?? '',
+        'email' => $settings['email'] ?? '',
+        'url' => url('/'),
+        'areaServed' => $cities->pluck('name')->all(),
+    ];
+
+    // Only claim a rating when real published reviews back it. Emitting an
+    // aggregateRating with no reviews is a false structured-data signal to
+    // search engines and grounds for a manual penalty.
+    if ($testimonials->isNotEmpty()) {
+        $businessSchema['aggregateRating'] = [
+            '@type' => 'AggregateRating',
+            'ratingValue' => round($testimonials->avg('rating'), 1),
+            'reviewCount' => $testimonials->count(),
+        ];
+    }
+@endphp
 <script type="application/ld+json">
-{!! json_encode([
-    '@context' => 'https://schema.org',
-    '@type' => 'AutoRental',
-    'name' => $settings['site_name'] ?? '',
-    'description' => $settings['meta_description'] ?? '',
-    'telephone' => $settings['phone'] ?? '',
-    'email' => $settings['email'] ?? '',
-    'url' => url('/'),
-    'areaServed' => $cities->pluck('name')->all(),
-    'aggregateRating' => [
-        '@type' => 'AggregateRating',
-        'ratingValue' => $settings['stat_rating'] ?? '4.9',
-        'reviewCount' => max($testimonials->count(), 1),
-    ],
-], JSON_UNESCAPED_SLASHES) !!}
+{!! json_encode($businessSchema, JSON_UNESCAPED_SLASHES) !!}
 </script>
 @endpush
 
@@ -75,7 +84,7 @@
 {{-- ============================ Fleet ============================ --}}
 <section class="section" id="fleet">
     <div class="shell">
-        <div class="sectionHead reveal">
+        <div class="sectionHead reveal reveal--left">
             <div>
                 <div class="eyebrow">The fleet</div>
                 <h2>Pick the vehicle, we handle the rest</h2>
@@ -95,7 +104,7 @@
             </div>
         @endif
 
-        <div class="grid grid--4">
+        <div class="grid grid--4 stagger">
             @forelse($vehicles as $vehicle)
                 <article class="card" data-category="{{ $vehicle->category?->slug ?? 'other' }}">
                     <div class="card__media @if(! $vehicle->image) card__media--empty @endif">
@@ -149,7 +158,7 @@
 @if($services->isNotEmpty())
 <section class="section section--dark">
     <div class="shell">
-        <div class="sectionHead reveal">
+        <div class="sectionHead reveal reveal--left">
             <div>
                 <div class="eyebrow">Beyond car hire</div>
                 <h2>Everything else we move</h2>
@@ -157,7 +166,7 @@
             </div>
         </div>
 
-        <div class="grid grid--3">
+        <div class="grid grid--3 stagger">
             @foreach($services as $service)
                 <article class="card" style="background:var(--asphalt-2); border-color:var(--line-dark)">
                     @if($service->image)
@@ -186,23 +195,20 @@
                 <h2>{{ $settings['about_heading'] ?? '' }}</h2>
                 <p class="lead">{{ $settings['about_body'] ?? '' }}</p>
 
-                <div class="stats" style="margin-top:2rem">
-                    <div class="stat">
-                        <div class="stat__value">{{ $settings['stat_years'] ?? '—' }}</div>
-                        <div class="stat__label">Years running</div>
-                    </div>
-                    <div class="stat">
-                        <div class="stat__value">{{ $settings['stat_clients'] ?? '—' }}</div>
-                        <div class="stat__label">Clients served</div>
-                    </div>
-                    <div class="stat">
-                        <div class="stat__value">{{ $settings['stat_vehicles'] ?? '—' }}</div>
-                        <div class="stat__label">Vehicles</div>
-                    </div>
-                    <div class="stat">
-                        <div class="stat__value">{{ $settings['stat_rating'] ?? '—' }}</div>
-                        <div class="stat__label">Average rating</div>
-                    </div>
+                <div class="stats stagger" style="margin-top:2rem">
+                    @foreach([
+                        ['stat_years', 'Years running'],
+                        ['stat_clients', 'Clients served'],
+                        ['stat_vehicles', 'Vehicles'],
+                        ['stat_rating', 'Average rating'],
+                    ] as [$key, $label])
+                        @php $value = $settings[$key] ?? '—'; @endphp
+                        <div class="stat">
+                            <div class="stat__value"
+                                 @if(preg_match('/\d/', (string) $value)) data-count data-count-to="{{ $value }}" @endif>{{ $value }}</div>
+                            <div class="stat__label">{{ $label }}</div>
+                        </div>
+                    @endforeach
                 </div>
             </div>
 
@@ -222,7 +228,7 @@
 @if($cities->isNotEmpty())
 <section class="section" id="locations">
     <div class="shell">
-        <div class="sectionHead reveal">
+        <div class="sectionHead reveal reveal--left">
             <div>
                 <div class="eyebrow">Where we operate</div>
                 <h2>Delivery across every city we cover</h2>
@@ -230,7 +236,7 @@
             <a class="btn btn--ghost" href="{{ route('directory') }}">Browse all areas</a>
         </div>
 
-        <div class="grid grid--2">
+        <div class="grid grid--2 stagger">
             @foreach($cities as $city)
                 <article class="cityCard">
                     <div class="cityCard__top">
@@ -273,7 +279,7 @@
 @if($testimonials->isNotEmpty())
 <section class="section section--dark" id="reviews">
     <div class="shell">
-        <div class="sectionHead reveal">
+        <div class="sectionHead reveal reveal--left">
             <div>
                 <div class="eyebrow">{{ $settings['stat_rating'] ?? '4.9' }} average</div>
                 <h2>What clients say afterwards</h2>
@@ -286,6 +292,7 @@
 
         <div class="reviews" data-carousel>
             @foreach($testimonials as $testimonial)
+
                 <article class="review">
                     <div class="review__stars">{{ str_repeat('★', $testimonial->rating) }}</div>
                     <p class="review__quote">{{ $testimonial->quote }}</p>
@@ -299,6 +306,8 @@
                 </article>
             @endforeach
         </div>
+
+        <div class="carouselDots" data-carousel-dots></div>
     </div>
 </section>
 @endif
@@ -315,7 +324,7 @@
                     @foreach($faqs as $faq)
                         <div class="faq__item" data-open="{{ $loop->first ? 'true' : 'false' }}">
                             <button class="faq__q" aria-expanded="{{ $loop->first ? 'true' : 'false' }}">{{ $faq->question }}</button>
-                            <div class="faq__a">{{ $faq->answer }}</div>
+                            <div class="faq__a"><div class="faq__aInner">{{ $faq->answer }}</div></div>
                         </div>
                     @endforeach
                 </div>
@@ -355,7 +364,7 @@
 @if($posts->isNotEmpty())
 <section class="section section--tight section--edge">
     <div class="shell">
-        <div class="sectionHead reveal">
+        <div class="sectionHead reveal reveal--left">
             <div>
                 <div class="eyebrow">Guides</div>
                 <h2>Worth reading before you hire</h2>
@@ -363,7 +372,7 @@
             <a class="btn btn--ghost" href="{{ route('blog') }}">All articles</a>
         </div>
 
-        <div class="grid grid--4">
+        <div class="grid grid--4 stagger">
             @foreach($posts as $post)
                 <article class="card">
                     @if($post->cover_image)
@@ -387,7 +396,7 @@
 {{-- ============================ Contact ============================ --}}
 <section class="section section--dark" id="contact">
     <div class="shell">
-        <div class="sectionHead reveal">
+        <div class="sectionHead reveal reveal--left">
             <div>
                 <div class="eyebrow">Contact</div>
                 <h2>Reach the dispatch desk</h2>
@@ -395,7 +404,7 @@
             </div>
         </div>
 
-        <div class="grid grid--3">
+        <div class="grid grid--3 stagger">
             @if(! empty($settings['whatsapp_number']))
                 <div class="contactCard">
                     <h3>WhatsApp</h3>
