@@ -31,14 +31,14 @@ class DatabaseSeeder extends Seeder
 
     protected function admin(): void
     {
-        User::updateOrCreate(
-            ['email' => env('ADMIN_EMAIL', 'admin@example.com')],
-            [
-                'name' => env('ADMIN_NAME', 'Site Admin'),
-                'password' => Hash::make(env('ADMIN_PASSWORD', 'change-this-password')),
-                'is_admin' => true,
-            ]
-        );
+        // Assigned directly rather than through updateOrCreate(): `is_admin` is not in
+        // the stock Laravel User model's $fillable, so mass assignment would silently
+        // drop it and lock the new account out of the dashboard.
+        $user = User::firstOrNew(['email' => env('ADMIN_EMAIL', 'admin@example.com')]);
+        $user->name = env('ADMIN_NAME', 'Site Admin');
+        $user->password = Hash::make(env('ADMIN_PASSWORD', 'change-this-password'));
+        $user->is_admin = true;
+        $user->save();
     }
 
     protected function settings(): void
