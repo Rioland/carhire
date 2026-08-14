@@ -8,11 +8,13 @@
         <div class="header__bar">
             <a class="brand" href="{{ route('home') }}">
                 @if(! empty($settings['logo']))
-                    <img src="{{ asset('storage/' . $settings['logo']) }}" alt="{{ $brand }}">
+                    {{-- The logo is a mark, not a full lockup: pairing it with live text
+                         keeps the company name crisp and readable at header size. --}}
+                    <img class="brand__logo" src="{{ asset('storage/' . $settings['logo']) }}" alt="">
                 @else
                     <span class="brand__mark">{{ mb_substr($brand, 0, 2) }}</span>
-                    <span>{{ $brand }}</span>
                 @endif
+                <span class="brand__name">{{ $brand }}</span>
             </a>
 
             <nav class="nav">

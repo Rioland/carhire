@@ -118,6 +118,14 @@ class DatabaseSeeder extends Seeder
         if ($hero = $this->media('hero-night-highway.jpg')) {
             Setting::put('hero_image', $hero, 'Homepage');
         }
+
+        if ($logo = $this->media('brand-mark.jpg')) {
+            Setting::put('logo', $logo, 'Business');
+        }
+
+        if ($share = $this->media('brand-lockup.jpg')) {
+            Setting::put('og_image', $share, 'Search engines');
+        }
     }
 
     protected function fleet(): void
