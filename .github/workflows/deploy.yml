@@ -1,11 +1,120 @@
 name: Deploy to Hostinger
+
+# Code changes only. Site content lives in the database and goes live the moment
+# you save it in the dashboard — this pipeline never touches it.
 on:
   push:
     branches: [main]
   workflow_dispatch:
+
+# Never let two deploys overlap on the same server.
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+env:
+  APP_DIR: /home/u800077713/carhire
+  WEB_DIR: /home/u800077713/public_html
+  SITE_URL: https://ghostwhite-mink-815498.hostingersite.com
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
-      - run: echo "minimal ok"
+
+      # 8.2 matches the platform pin in composer.json and the PHP set on the host.
+      - name: Set up PHP 8.2
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: bcmath, ctype, fileinfo, mbstring, openssl, pdo_mysql, tokenizer, xml, gd
+          coverage: none
+
+      - name: Cache Composer packages
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: composer-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-
+
+      - name: Install production dependencies
+        run: composer install --no-dev --optimize-autoloader --no-interaction --no-progress
+
+      # The repo's public/index.php points at ../vendor, which is right for local
+      # dev. On the host the app sits beside public_html, so repoint it here rather
+      # than committing a server-only variant.
+      - name: Repoint index.php at the application folder
+        run: |
+          sed -i \
+            -e "s#__DIR__\.'/\.\./vendor/autoload\.php'#__DIR__.'/../carhire/vendor/autoload.php'#" \
+            -e "s#__DIR__\.'/\.\./bootstrap/app\.php'#__DIR__.'/../carhire/bootstrap/app.php'#" \
+            -e "s#__DIR__\.'/\.\./storage/framework/maintenance\.php'#__DIR__.'/../carhire/storage/framework/maintenance.php'#" \
+            public/index.php
+          grep -n "carhire/" public/index.php
+
+      - name: Load SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Trust the host key
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -p ${{ secrets.SSH_PORT }} -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+
+      # Only the directories that make up the application. storage/ and .env are
+      # never in the transfer list, so uploads, logs and credentials are untouchable.
+      - name: Sync application
+        run: |
+          rsync -az --delete \
+            -e "ssh -p ${{ secrets.SSH_PORT }}" \
+            --exclude='bootstrap/cache/*.php' \
+            --exclude='database/database.sqlite' \
+            app bootstrap config database resources routes vendor \
+            artisan composer.json composer.lock \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ env.APP_DIR }}/
+
+      # Web root. Excludes the storage symlink and the one-shot installer so a
+      # deploy can never resurrect setup.php.
+      - name: Sync web root
+        run: |
+          rsync -az --delete \
+            -e "ssh -p ${{ secrets.SSH_PORT }}" \
+            --exclude='storage' \
+            --exclude='setup.php' \
+            public/ \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ env.WEB_DIR }}/
+
+      # migrate is additive and safe to repeat. db:seed is deliberately absent —
+      # the seeder uses updateOrCreate, so running it here would overwrite every
+      # edit made in the dashboard with the original seeded copy.
+      - name: Migrate and rebuild caches
+        run: |
+          ssh -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
+            "cd ${{ env.APP_DIR }} && \
+             php artisan migrate --force && \
+             php artisan config:clear && php artisan config:cache && \
+             php artisan route:clear  && php artisan route:cache && \
+             php artisan view:clear   && php artisan view:cache && \
+             php artisan cache:clear"
+
+      - name: Verify the site is up
+        run: |
+          for i in 1 2 3; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 25 "${{ env.SITE_URL }}/")
+            echo "attempt $i: HTTP $code"
+            [ "$code" = "200" ] && exit 0
+            sleep 10
+          done
+          echo "::error::Site did not return 200 after deploy"
+          exit 1
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "### Deploy ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- commit \`${GITHUB_SHA::7}\` — ${{ github.event.head_commit.message }}" >> $GITHUB_STEP_SUMMARY
+          echo "- ${{ env.SITE_URL }}" >> $GITHUB_STEP_SUMMARY
