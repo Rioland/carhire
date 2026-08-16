@@ -21,7 +21,8 @@ class SettingController extends Controller
             ],
             'Contact' => [
                 'phone' => ['label' => 'Phone number', 'type' => 'text', 'hint' => 'Shown as a tap-to-call link.'],
-                'whatsapp_number' => ['label' => 'WhatsApp number', 'type' => 'text', 'hint' => 'International format, e.g. 2347042447680. Every Book Now button uses this.'],
+                'phone_alt' => ['label' => 'Other phone numbers', 'type' => 'textarea', 'hint' => 'One per line. Shown alongside the main number in the footer and on the contact page.'],
+                'whatsapp_number' => ['label' => 'WhatsApp number', 'type' => 'text', 'hint' => 'International format with no leading zero, e.g. 2347033758671. Every Book Now button uses this.'],
                 'email' => ['label' => 'Email address', 'type' => 'text'],
                 'address_primary' => ['label' => 'Address line 1', 'type' => 'text'],
                 'address_secondary' => ['label' => 'Address line 2', 'type' => 'text'],

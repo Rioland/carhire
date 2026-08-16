@@ -119,6 +119,7 @@ $out = [
         'tagline' => $settings['tagline'] ?? '',
         'logo' => $img($settings['logo'] ?? null),
         'phone' => $settings['phone'] ?? '',
+        'phoneAlt' => array_values(array_filter(array_map('trim', explode("\n", (string) ($settings['phone_alt'] ?? ''))))),
         'whatsapp' => preg_replace('/\D+/', '', $settings['whatsapp_number'] ?? ''),
         'email' => $settings['email'] ?? '',
         'addressPrimary' => $settings['address_primary'] ?? '',

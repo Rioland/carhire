@@ -72,8 +72,10 @@ class DatabaseSeeder extends Seeder
                 'founded_year' => '2020',
             ],
             'Contact' => [
-                'phone' => '+234 814 991 6721',
-                'whatsapp_number' => '2348149916721',
+                'phone' => '0703 375 8671',
+                // International format, no leading zero — this is what wa.me needs.
+                'whatsapp_number' => '2347033758671',
+                'phone_alt' => "0806 666 4484\n0905 000 0044",
                 'email' => 'riotech2222@gmail.com',
                 'address_primary' => 'Lagos — Victoria Island',
                 'address_secondary' => 'Abuja — Wuse II',
