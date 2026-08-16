@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { cities, landingServices, pages, settings } from '@/lib/content';
 import { whatsappDirect } from '@/lib/enquiry';
 import { BookButton } from './BookingModal';
@@ -30,17 +31,45 @@ export function Header() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  // Any click outside a dropdown closes it.
+  const navRef = useRef<HTMLElement | null>(null);
+  const pathname = usePathname();
+
+  /**
+   * Close on a click outside the nav.
+   *
+   * This deliberately tests the click target rather than calling
+   * stopPropagation() in the toggle. The App Router hydrates the whole
+   * document, so React's delegated listener sits on `document` — the same node
+   * this listener is attached to. stopPropagation() only stops ancestors, not
+   * siblings on the same node, so the toggle's own click would reach this
+   * handler and close the menu in the same tick it opened.
+   */
   useEffect(() => {
-    const onClick = () => setOpenMenu(null);
-    document.addEventListener('click', onClick);
-    return () => document.removeEventListener('click', onClick);
+    const onDocumentClick = (e: MouseEvent) => {
+      if (navRef.current?.contains(e.target as Node)) return;
+      setOpenMenu(null);
+    };
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpenMenu(null);
+    };
+
+    document.addEventListener('click', onDocumentClick);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('click', onDocumentClick);
+      document.removeEventListener('keydown', onKey);
+    };
   }, []);
 
-  const toggle = (name: string) => (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setOpenMenu((c) => (c === name ? null : name));
-  };
+  // Navigating away closes whatever is open, including the mobile sheet.
+  useEffect(() => {
+    setOpenMenu(null);
+    setMobileOpen(false);
+  }, [pathname]);
+
+  const toggle = (name: string) => () =>
+    setOpenMenu((current) => (current === name ? null : name));
 
   return (
     <header className={`header${scrolled ? ' is-scrolled' : ''}`}>
@@ -60,7 +89,7 @@ export function Header() {
             )}
           </Link>
 
-          <nav className="nav">
+          <nav className="nav" ref={navRef}>
             <Link href="/">Home</Link>
 
             <div className="nav__group" data-dropdown data-open={openMenu === 'services'}>
@@ -69,7 +98,9 @@ export function Header() {
               </button>
               <div className="nav__menu">
                 {landingServices.map((s) => (
-                  <Link key={s.slug} href={`/services/${s.slug}/`}>{s.name}</Link>
+                  <Link key={s.slug} href={`/services/${s.slug}/`} onClick={() => setOpenMenu(null)}>
+                    {s.name}
+                  </Link>
                 ))}
               </div>
             </div>
@@ -80,9 +111,13 @@ export function Header() {
               </button>
               <div className="nav__menu">
                 {cities.map((c) => (
-                  <Link key={c.slug} href={`/car-rental-${c.slug}/`}>Car hire in {c.name}</Link>
+                  <Link key={c.slug} href={`/car-rental-${c.slug}/`} onClick={() => setOpenMenu(null)}>
+                    Car hire in {c.name}
+                  </Link>
                 ))}
-                <Link href="/location-directory/">All locations</Link>
+                <Link href="/location-directory/" onClick={() => setOpenMenu(null)}>
+                  All locations
+                </Link>
               </div>
             </div>
 
