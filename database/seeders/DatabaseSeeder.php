@@ -76,7 +76,7 @@ class DatabaseSeeder extends Seeder
                 // International format, no leading zero — this is what wa.me needs.
                 'whatsapp_number' => '2347033758671',
                 'phone_alt' => "0806 666 4484\n0905 000 0044",
-                'email' => 'riotech2222@gmail.com',
+                'email' => 'suport@folafemzglobal.com',
                 'address_primary' => 'Lagos — Victoria Island',
                 'address_secondary' => 'Abuja — Wuse II',
                 'business_hours' => 'Dispatch desk open 24 hours, every day',

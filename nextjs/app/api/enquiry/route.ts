@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server';
-import nodemailer from 'nodemailer';
 import { composeMessage, type Enquiry } from '@/lib/enquiry';
+import { MailError, inboxAddress, sendMail } from '@/lib/mailer';
 
 /* --------------------------------------------------------------------------
    Enquiry endpoint
    --------------------------------------------------------------------------
-   Receives a booking enquiry and emails it to the business inbox over the
-   Hostinger mailbox's own SMTP. Runs on Vercel's Node runtime — nodemailer
-   opens a TCP connection, which the Edge runtime cannot do.
+   Receives a booking enquiry and emails it to the business inbox via the
+   Hostinger Mail API, falling back to SMTP when no API token is configured.
+   Node runtime: the SMTP fallback opens a TCP connection, which Edge cannot.
    -------------------------------------------------------------------------- */
 
 export const runtime = 'nodejs';
@@ -58,50 +58,66 @@ export async function POST(request: Request) {
     );
   }
 
-  const { EMAIL_USER, EMAIL_PASSWORD, EMAIL_TO, SMTP_HOST, SMTP_PORT } = process.env;
+  const to = inboxAddress();
 
-  if (!EMAIL_USER || !EMAIL_PASSWORD) {
+  if (!to || (!process.env.HOSTINGER_API_KEY && !process.env.EMAIL_PASSWORD)) {
     // Configuration fault, not the visitor's. Say so plainly and log it, rather
     // than reporting a success the business will never see.
-    console.error('[enquiry] EMAIL_USER / EMAIL_PASSWORD are not set');
+    console.error('[enquiry] no mail transport configured');
     return NextResponse.json(
       { error: 'Email is not configured on the server. Please use WhatsApp.' },
       { status: 503 }
     );
   }
 
-  const port = Number(SMTP_PORT ?? 465);
-
-  const transport = nodemailer.createTransport({
-    host: SMTP_HOST ?? 'smtp.hostinger.com',
-    port,
-    secure: port === 465,
-    auth: { user: EMAIL_USER, pass: EMAIL_PASSWORD },
-  });
+  const who = [enquiry.name, enquiry.phone].filter(Boolean).join(' · ');
 
   const subject = enquiry.vehicle
-    ? `Booking enquiry — ${enquiry.vehicle}`
+    ? `Booking enquiry — ${enquiry.vehicle} — ${who}`
     : enquiry.service
-      ? `Booking enquiry — ${enquiry.service}`
-      : 'Booking enquiry';
+      ? `Booking enquiry — ${enquiry.service} — ${who}`
+      : `Booking enquiry — ${who}`;
 
   const text = composeMessage(enquiry);
+  const escape = (s: string) =>
+    s.replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c] as string));
+
+  // The customer's own contact details lead the message. The Mail API has no
+  // Reply-To field, so hitting Reply goes to this mailbox — the details have to
+  // be in the body to be reachable.
+  const contactLine = [
+    enquiry.phone ? `Call: ${enquiry.phone}` : null,
+    enquiry.email ? `Email: ${enquiry.email}` : null,
+  ]
+    .filter(Boolean)
+    .join('   ');
+
+  const html = `
+    <div style="font:15px/1.6 system-ui,sans-serif;color:#0c1627">
+      <p style="margin:0 0 4px;font-weight:700;font-size:17px">${escape(enquiry.name)}</p>
+      <p style="margin:0 0 16px">
+        ${enquiry.phone ? `<a href="tel:${escape(enquiry.phone)}">${escape(enquiry.phone)}</a>` : ''}
+        ${enquiry.email ? ` &nbsp;·&nbsp; <a href="mailto:${escape(enquiry.email)}">${escape(enquiry.email)}</a>` : ''}
+      </p>
+      <pre style="font:14px/1.6 ui-monospace,monospace;white-space:pre-wrap;background:#f6f0e1;
+                  border-left:3px solid #d4a94e;padding:14px;margin:0">${escape(text)}</pre>
+    </div>`;
 
   try {
-    await transport.sendMail({
-      // From must be the authenticated mailbox or Hostinger rejects the message.
-      from: `"Website enquiry" <${EMAIL_USER}>`,
-      to: EMAIL_TO || EMAIL_USER,
-      // Replying in the inbox goes to the customer, not back to ourselves.
-      replyTo: enquiry.email ? oneLine(enquiry.email) : undefined,
+    const transport = await sendMail({
+      to,
       subject: oneLine(subject),
-      text,
-      html: `<pre style="font:14px/1.6 ui-monospace,monospace;white-space:pre-wrap">${
-        text.replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c] as string))
-      }</pre>`,
+      text: contactLine ? `${contactLine}\n\n${text}` : text,
+      html,
+      replyTo: enquiry.email ? oneLine(enquiry.email) : undefined,
     });
+    console.log(`[enquiry] sent via ${transport}`);
   } catch (error) {
-    console.error('[enquiry] send failed:', error);
+    if (error instanceof MailError) {
+      console.error(`[enquiry] ${error.message}`, error.status ?? '', error.detail ?? '');
+    } else {
+      console.error('[enquiry] send failed:', error);
+    }
     return NextResponse.json(
       { error: 'We could not send that. Please try WhatsApp instead.' },
       { status: 502 }
